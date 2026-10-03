@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PelargoniumWorld Photo Tool wFB — v1.0.2</title>
+<title>PelargoniumWorld Photo Tool wFB — v1.0.3</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bad+Script&family=Pattaya&display=swap');
 :root{--green:#0b6239;--green2:#12804a;--light:#edf4ef;--card:#fff;--ink:#173122;--muted:#68776d;--line:#d7e2d9;--soft:#f4f8f5}
@@ -35,7 +35,7 @@
 <body>
 <div class="app">
 <header class="top">
-  <div class="brand"><img id="brandLogo" src="logoes/PelargoniumWorld.png" alt="PelargoniumWorld"><div><h1>PelargoniumWorld Photo Tool wFB <span class="version-badge">v1.0.2</span></h1><p>Подготви снимка за сайта и Facebook.</p></div></div>
+  <div class="brand"><img id="brandLogo" src="logoes/PelargoniumWorld.png" alt="PelargoniumWorld"><div><h1>PelargoniumWorld Photo Tool wFB <span class="version-badge">v1.0.3</span></h1><p>Подготви снимка за сайта и Facebook.</p></div></div>
   <nav class="top-links"><a href="https://pelargoniumworld.eu" target="_blank" rel="noopener">🌐 Сайт</a><a href="https://www.facebook.com/groups/pelargoniumworld" target="_blank" rel="noopener">👥 Facebook група</a><a href="https://www.facebook.com/pelargoniumworld.eu" target="_blank" rel="noopener">📘 Facebook страница</a></nav>
   <div class="top-actions"><label class="btn primary" id="openLabel" for="photo">1. Качи снимка</label><input id="photo" type="file" accept="image/*" hidden><button class="btn" id="downloadPng" disabled>Свали PNG</button><button class="btn" id="downloadJpg" disabled>Свали JPG</button></div>
 </header>
@@ -69,7 +69,7 @@
   <button class="btn" id="photoReset" style="width:100%;margin-top:4px">Центрирай снимката</button>
 </section>
 <section class="card section" id="logoSection"><div class="title-row"><h2>3. Лого</h2><label class="toggle"><input id="logoOn" type="checkbox" checked> Покажи</label></div>
-  <div class="field"><label>Избери лого</label><div class="logo-choice"><img class="logo-thumb" id="logoThumb" src="logoes/PelargoniumWorld.png"><select id="logoSelect"><option value="pw">PelargoniumWorld</option><option value="ne-si-sam">НЕ СИ САМ!</option><option value="none">Без лого</option></select></div></div>
+  <div class="field"><label>Избери лого</label><div class="logo-choice"><img class="logo-thumb" id="logoThumb" src="logoes/PelargoniumWorld.png" alt="Избрано лого"><select id="logoSelect" aria-label="Избери лого"><option value="pw">PelargoniumWorld</option><option value="ne-si-sam">НЕ СИ САМ!</option><option value="none">Без лого</option></select></div></div>
   <div class="field"><label>Размер <span class="value" id="logoSizeV">42%</span></label><input id="logoSize" type="range" min="5" max="55" value="42"></div>
   <div class="field"><label>Прозрачност <span class="value" id="logoOpacityV">100%</span></label><input id="logoOpacity" type="range" min="0" max="100" value="100"></div>
   <div class="field"><label>Хоризонтално положение <span class="value" id="logoXV">-64%</span></label><input id="logoX" type="range" min="-100" max="100" value="-64"></div>
@@ -93,10 +93,46 @@
 </div></div>
 <script>
 const LOGO_CATALOG={pw:'logoes/PelargoniumWorld.png','ne-si-sam':'logoes/ne-si-sam.svg'};
+const LOGO_NAMES={pw:'PelargoniumWorld','ne-si-sam':'НЕ СИ САМ!'};
+const LOGO_TYPES={};
+async function loadLogoCatalog(){
+  try{
+    const res=await fetch('https://api.github.com/repos/dannrash78/PelargoniumWorld-photo-tool-wFB/contents/logoes?ref=main',{headers:{Accept:'application/vnd.github+json'}});
+    if(!res.ok)throw new Error('HTTP '+res.status);
+    const files=await res.json();
+    for(const file of files){
+      if(file.type!=='file')continue;
+      const ext=(file.name.split('.').pop()||'').toLowerCase();
+      if(!['png','jpg','jpeg','webp','svg','gif'].includes(ext))continue;
+      const key='file:'+file.name;
+      LOGO_CATALOG[key]=file.download_url||('logoes/'+encodeURIComponent(file.name));
+      LOGO_NAMES[key]=file.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ').trim();
+      LOGO_TYPES[key]=ext;
+    }
+    renderLogoOptions();
+  }catch(err){
+    console.warn('Logo catalog could not be loaded:',err);
+  }
+}
+function renderLogoOptions(){
+  const select=$('logoSelect');
+  const current=select.value||'pw';
+  select.innerHTML='';
+  Object.keys(LOGO_CATALOG).forEach(key=>{
+    const opt=document.createElement('option');
+    opt.value=key;
+    opt.textContent=LOGO_NAMES[key]||key;
+    select.appendChild(opt);
+  });
+  const none=document.createElement('option'); none.value='none'; none.textContent='Без лого'; select.appendChild(none);
+  select.value=LOGO_CATALOG[current]?current:'pw';
+}
+
 const $=id=>document.getElementById(id);
 const presets=[['site-square','Сайт','1200 × 1200',1200,1200],['site-portrait','Сайт портрет','1200 × 1500',1200,1500],['fb-square','Facebook','1080 × 1080',1080,1080],['fb-portrait','Facebook портрет','1080 × 1350',1080,1350],['fb-landscape','Facebook хоризонтален','1200 × 630',1200,630]];
 const state={format:null,photoLoaded:false,photoX:0,photoY:0,logoOn:true,logo:'pw',logoSize:42,logoOpacity:1,logoX:-64,logoY:-73,wmOn:true,wmText:'Пеларгонен Свят (Pelargonium World) ©',wmOpacity:.13,wmDensity:1,wmAngle:-18,wmDirection:'tl-br',textOn:true,text:'Пеларгониум Свят (Pelargonium World) ©',font:'Pattaya',textSize:64,textColor:'#ffffff',textOpacity:1,textPosition:'bottom',textAlign:'center',textInset:5,textX:.5,textY:null,drag:null};
 const canvas=$('canvas'),ctx=canvas.getContext('2d');const logo=new Image();logo.src=LOGO_CATALOG.pw;const photo=new Image();
+loadLogoCatalog();
 function renderPresets(){const box=$('presets');presets.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='preset';b.dataset.key=p[0];b.innerHTML='<b>'+p[1]+'</b><span>'+p[2]+'</span>';b.onclick=()=>setFormat(p[3],p[4],p[0]);box.appendChild(b)})}
 renderPresets();
 function autoPositionPhoto(){if(!state.photoLoaded||!state.format)return;const photoRatio=photo.naturalWidth/photo.naturalHeight;const frameRatio=canvas.width/canvas.height;state.photoX=0;state.photoY=(photoRatio<frameRatio)?12:0;$('photoX').value=Math.round(state.photoX);$('photoY').value=Math.round(state.photoY)}
@@ -123,9 +159,9 @@ function applyUploadDefaults(){
 }
 $('photo').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const url=URL.createObjectURL(f);photo.onload=()=>{state.photoLoaded=true;applyUploadDefaults();state.photoX=0;state.photoY=0;$('photoX').value=0;$('photoY').value=0;setFormat(1080,1350,'fb-portrait');autoPositionPhoto();$('info').textContent=f.name+' — '+photo.naturalWidth+' × '+photo.naturalHeight;$('photoStatus').textContent='Снимката е готова за позициониране';$('downloadPng').disabled=false;$('downloadJpg').disabled=false;URL.revokeObjectURL(url);draw()};photo.onerror=()=>{alert('Снимката не може да бъде заредена.');URL.revokeObjectURL(url)};photo.src=url};
 [['logoSize','logoSize',Number],['logoOpacity','logoOpacity',v=>Number(v)/100],['logoX','logoX',Number],['logoY','logoY',Number],['wmOpacity','wmOpacity',v=>Number(v)/100],['wmDensity','wmDensity',v=>Number(v)/100],['textSize','textSize',Number],['textOpacity','textOpacity',v=>Number(v)/100]].forEach(([id,key,fn])=>$(id).addEventListener('input',e=>{state[key]=fn(e.target.value);draw()}));
-$('logoOn').oninput=e=>{state.logoOn=e.target.checked;draw()};$('logoSelect').onchange=e=>{state.logo=e.target.value;state.logoOn=e.target.value!=='none';$('logoOn').checked=state.logoOn;if(state.logo!=='none'){logo.src=LOGO_CATALOG[state.logo];$('logoThumb').src=LOGO_CATALOG[state.logo];}draw()};$('wmOn').oninput=e=>{state.wmOn=e.target.checked;draw()};$('wmText').oninput=e=>{state.wmText=e.target.value;draw()};$('wmAngle').oninput=e=>{state.wmAngle=-Math.abs(Number(e.target.value));draw()};document.querySelectorAll('input[name=wmDirection]').forEach(el=>el.addEventListener('change',e=>{state.wmDirection=e.target.value;draw()}));$('textOn').oninput=e=>{state.textOn=e.target.checked;draw()};$('captionText').oninput=e=>{state.text=e.target.value;draw()};$('font').onchange=e=>{state.font=e.target.value;draw()};$('textColor').oninput=e=>{state.textColor=e.target.value;draw()};$('textAlign').onchange=e=>{state.textAlign=e.target.value;state.textY=null;state.textPosition=state.textPosition==='custom'?'bottom':state.textPosition;draw()};$('textPosition').onchange=e=>{state.textPosition=e.target.value;state.textY=null;draw()};
+$('logoOn').oninput=e=>{state.logoOn=e.target.checked;draw()};$('logoSelect').onchange=e=>{state.logo=e.target.value;state.logoOn=e.target.value!=='none';$('logoOn').checked=state.logoOn;if(state.logo!=='none'&&LOGO_CATALOG[state.logo]){logo.onload=()=>draw();logo.src=LOGO_CATALOG[state.logo];$('logoThumb').src=LOGO_CATALOG[state.logo];}draw()};$('wmOn').oninput=e=>{state.wmOn=e.target.checked;draw()};$('wmText').oninput=e=>{state.wmText=e.target.value;draw()};$('wmAngle').oninput=e=>{state.wmAngle=-Math.abs(Number(e.target.value));draw()};document.querySelectorAll('input[name=wmDirection]').forEach(el=>el.addEventListener('change',e=>{state.wmDirection=e.target.value;draw()}));$('textOn').oninput=e=>{state.textOn=e.target.checked;draw()};$('captionText').oninput=e=>{state.text=e.target.value;draw()};$('font').onchange=e=>{state.font=e.target.value;draw()};$('textColor').oninput=e=>{state.textColor=e.target.value;draw()};$('textAlign').onchange=e=>{state.textAlign=e.target.value;state.textY=null;state.textPosition=state.textPosition==='custom'?'bottom':state.textPosition;draw()};$('textPosition').onchange=e=>{state.textPosition=e.target.value;state.textY=null;draw()};
 function pointer(e){const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}
-function hitLogo(p){if(!state.logoOn||state.logo!=='pw')return false;const r=logoRect();return p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h}
+function hitLogo(p){if(!state.logoOn||state.logo==='none')return false;const r=logoRect();return p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h}
 function hitText(p){if(!state.textOn||!state.text.trim())return false;ctx.save();ctx.font=`${state.textSize}px ${state.font}`;const w=ctx.measureText(state.text).width;ctx.restore();const x=textXPosition(),y=textPosition();const left=state.textAlign==='left'?x-12:x-w/2-18;const right=state.textAlign==='right'?x+12:x+w/2+18;return p.x>=left&&p.x<=right&&Math.abs(p.y-y)<=state.textSize*1.25}
 canvas.addEventListener('pointerdown',e=>{if(!state.photoLoaded||!state.format)return;const p=pointer(e);if(hitLogo(p)){const r=logoRect();state.drag={type:'logo',dx:p.x-r.cx,dy:p.y-r.cy};canvas.setPointerCapture(e.pointerId);return}if(hitText(p)){state.drag={type:'text',dx:p.x-textXPosition(),dy:p.y-textPosition()};canvas.setPointerCapture(e.pointerId);return}const r=coverRect();if(r){state.drag={type:'photo',startX:p.x,startY:p.y,startPhotoX:state.photoX,startPhotoY:state.photoY,maxX:r.maxX,maxY:r.maxY};canvas.setPointerCapture(e.pointerId)}});
 canvas.addEventListener('pointermove',e=>{if(!state.drag)return;const p=pointer(e);if(state.drag.type==='logo'){const cx=p.x-state.drag.dx,cy=p.y-state.drag.dy;state.logoX=Math.max(-100,Math.min(100,(cx-canvas.width/2)*200/canvas.width));state.logoY=Math.max(-100,Math.min(100,(cy-canvas.height/2)*200/canvas.height));$('logoX').value=Math.round(state.logoX);$('logoY').value=Math.round(state.logoY)}else if(state.drag.type==='text'){state.textX=Math.max(0.05,Math.min(.95,(p.x-state.drag.dx)/canvas.width));state.textY=Math.max(20,Math.min(canvas.height-20,p.y-state.drag.dy));state.textPosition='custom'}else if(state.drag.type==='photo'){const mx=Math.max(1,state.drag.maxX),my=Math.max(1,state.drag.maxY);state.photoX=Math.max(-100,Math.min(100,state.drag.startPhotoX+(p.x-state.drag.startX)*100/mx));state.photoY=Math.max(-100,Math.min(100,state.drag.startPhotoY+(p.y-state.drag.startY)*100/my));$('photoX').value=Math.round(state.photoX);$('photoY').value=Math.round(state.photoY)}draw()});
