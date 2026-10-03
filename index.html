@@ -159,16 +159,94 @@ const $=id=>document.getElementById(id);
 function loadLogo(key){
   if(!key||key==='none'||!LOGO_CATALOG[key])return;
   const src=LOGO_CATALOG[key];
+  const img=new Image();
 
-  // Use the original logo unchanged. The white text background and white
-  // symbol outline are intentional parts of the artwork.
-  logo.onload=()=>{
-    $('logoThumb').src=src;
-    draw();
+  img.onload=()=>{
+    try{
+      const w=img.naturalWidth||img.width;
+      const h=img.naturalHeight||img.height;
+      const work=document.createElement('canvas');
+      work.width=w; work.height=h;
+      const wx=work.getContext('2d',{willReadFrequently:true});
+      wx.clearRect(0,0,w,h);
+      wx.drawImage(img,0,0,w,h);
+
+      const d=wx.getImageData(0,0,w,h);
+      const seen=new Uint8Array(w*h);
+      const q=new Int32Array(w*h);
+      let head=0,tail=0;
+
+      // The uploaded logo has a checkerboard background. Detect its actual
+      // corner/edge colors, then remove ONLY background pixels connected to
+      // the outside. White parts enclosed by the logo remain untouched.
+      const bg=[];
+      const sample=(x,y)=>{
+        const i=(y*w+x)*4;
+        const r=d.data[i],g=d.data[i+1],b=d.data[i+2],a=d.data[i+3];
+        if(a>0){
+          const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+          if(mx-mn<=18) bg.push([r,g,b]);
+        }
+      };
+      const pts=[
+        [0,0],[Math.max(0,w-1),0],[0,Math.max(0,h-1)],[Math.max(0,w-1),Math.max(0,h-1)],
+        [Math.floor(w*.02),Math.floor(h*.02)],[Math.floor(w*.98),Math.floor(h*.02)],
+        [Math.floor(w*.02),Math.floor(h*.98)],[Math.floor(w*.98),Math.floor(h*.98)]
+      ];
+      pts.forEach(p=>sample(p[0],p[1]));
+
+      // Always recognize neutral gray/white checkerboard shades, but keep
+      // pure white inside the logo because only edge-connected pixels die.
+      const isBackground=i=>{
+        if(d.data[i+3]===0)return true;
+        const r=d.data[i],g=d.data[i+1],b=d.data[i+2];
+        const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+        if(mx-mn>28)return false;
+        for(const c of bg){
+          const dr=r-c[0],dg=g-c[1],db=b-c[2];
+          if(dr*dr+dg*dg+db*db<=32*32)return true;
+        }
+        // Neutral light/gray pixels typical of the checkerboard.
+        return mx>=150 && mx-mn<=12;
+      };
+
+      const push=(x,y)=>{
+        if(x<0||y<0||x>=w||y>=h)return;
+        const p=y*w+x;
+        if(seen[p]||!isBackground(p*4))return;
+        seen[p]=1;
+        q[tail++]=p;
+      };
+
+      for(let x=0;x<w;x++){push(x,0);push(x,h-1)}
+      for(let y=0;y<h;y++){push(0,y);push(w-1,y)}
+
+      while(head<tail){
+        const p=q[head++];
+        d.data[p*4+3]=0;
+        const x=p%w,y=Math.floor(p/w);
+        push(x-1,y);push(x+1,y);push(x,y-1);push(x,y+1);
+      }
+
+      wx.putImageData(d,0,0);
+      logo.onload=draw;
+      logo.src=work.toDataURL('image/png');
+
+      // Keep the selector thumbnail as the original artwork so it remains
+      // visually identical to the uploaded logo.
+      $('logoThumb').src=src;
+      draw();
+    }catch(err){
+      console.warn('Logo transparency processing failed:',err);
+      logo.onload=draw;
+      logo.src=src;
+      $('logoThumb').src=src;
+      draw();
+    }
   };
-  logo.onerror=()=>console.warn('Logo could not be loaded:',src);
-  $('logoThumb').src=src;
-  logo.src=src;
+
+  img.onerror=()=>console.warn('Logo could not be loaded:',src);
+  img.src=src;
 }
 const presets=[['site-square','Сайт','1200 × 1200',1200,1200],['site-portrait','Сайт портрет','1200 × 1500',1200,1500],['fb-square','Facebook','1080 × 1080',1080,1080],['fb-portrait','Facebook портрет','1080 × 1350',1080,1350],['fb-landscape','Facebook хоризонтален','1200 × 630',1200,630]];
 const state={format:null,photoLoaded:false,photoX:0,photoY:0,logoOn:true,logo:'pw',logoSize:42,logoOpacity:1,logoX:-64,logoY:-73,wmOn:true,wmText:'Пеларгонен Свят (Pelargonium World) ©',wmOpacity:.13,wmDensity:1,wmAngle:-18,wmDirection:'tl-br',textOn:true,text:'Пеларгониум Свят (Pelargonium World) ©',font:'Pattaya',textSize:64,textColor:'#ffffff',textOpacity:1,textPosition:'bottom',textAlign:'center',textInset:5,textX:.5,textY:null,drag:null};
