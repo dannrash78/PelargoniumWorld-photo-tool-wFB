@@ -138,6 +138,49 @@ function renderLogoOptions(){
 }
 
 const $=id=>document.getElementById(id);
+async function loadLogo(key){
+  const src=LOGO_CATALOG[key];
+  if(!src)return;
+  if(key!=='ne-si-sam-png'){
+    logo.onload=()=>draw();
+    logo.src=src;
+    $('logoThumb').src=src;
+    return;
+  }
+  const img=new Image();
+  img.crossOrigin='anonymous';
+  img.onload=()=>{
+    try{
+      const c=document.createElement('canvas');
+      c.width=img.naturalWidth;
+      c.height=img.naturalHeight;
+      const x=c.getContext('2d');
+      x.drawImage(img,0,0);
+      const d=x.getImageData(0,0,c.width,c.height);
+      for(let i=0;i<d.data.length;i+=4){
+        const r=d.data[i],g=d.data[i+1],b=d.data[i+2];
+        const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+        if(mx-mn<=8 && mx<245)d.data[i+3]=0;
+      }
+      x.putImageData(d,0,0);
+      const cleaned=c.toDataURL('image/png');
+      logo.onload=()=>draw();
+      logo.src=cleaned;
+      $('logoThumb').src=cleaned;
+    }catch(err){
+      console.warn('Неуспешно изчистване на фона на логото.',err);
+      logo.onload=()=>draw();
+      logo.src=src;
+      $('logoThumb').src=src;
+    }
+  };
+  img.onerror=()=>{
+    logo.onload=()=>draw();
+    logo.src=src;
+    $('logoThumb').src=src;
+  };
+  img.src=src;
+}
 const presets=[['site-square','Сайт','1200 × 1200',1200,1200],['site-portrait','Сайт портрет','1200 × 1500',1200,1500],['fb-square','Facebook','1080 × 1080',1080,1080],['fb-portrait','Facebook портрет','1080 × 1350',1080,1350],['fb-landscape','Facebook хоризонтален','1200 × 630',1200,630]];
 const state={format:null,photoLoaded:false,photoX:0,photoY:0,logoOn:true,logo:'pw',logoSize:42,logoOpacity:1,logoX:-64,logoY:-73,wmOn:true,wmText:'Пеларгонен Свят (Pelargonium World) ©',wmOpacity:.13,wmDensity:1,wmAngle:-18,wmDirection:'tl-br',textOn:true,text:'Пеларгониум Свят (Pelargonium World) ©',font:'Pattaya',textSize:64,textColor:'#ffffff',textOpacity:1,textPosition:'bottom',textAlign:'center',textInset:5,textX:.5,textY:null,drag:null};
 const canvas=$('canvas'),ctx=canvas.getContext('2d');const logo=new Image();logo.src=LOGO_CATALOG.pw;const photo=new Image();
@@ -168,7 +211,7 @@ function applyUploadDefaults(){
 }
 $('photo').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const url=URL.createObjectURL(f);photo.onload=()=>{state.photoLoaded=true;applyUploadDefaults();state.photoX=0;state.photoY=0;$('photoX').value=0;$('photoY').value=0;setFormat(1080,1350,'fb-portrait');autoPositionPhoto();$('info').textContent=f.name+' — '+photo.naturalWidth+' × '+photo.naturalHeight;$('photoStatus').textContent='Снимката е готова за позициониране';$('downloadPng').disabled=false;$('downloadJpg').disabled=false;URL.revokeObjectURL(url);draw()};photo.onerror=()=>{alert('Снимката не може да бъде заредена.');URL.revokeObjectURL(url)};photo.src=url};
 [['logoSize','logoSize',Number],['logoOpacity','logoOpacity',v=>Number(v)/100],['logoX','logoX',Number],['logoY','logoY',Number],['wmOpacity','wmOpacity',v=>Number(v)/100],['wmDensity','wmDensity',v=>Number(v)/100],['textSize','textSize',Number],['textOpacity','textOpacity',v=>Number(v)/100]].forEach(([id,key,fn])=>$(id).addEventListener('input',e=>{state[key]=fn(e.target.value);draw()}));
-$('logoOn').oninput=e=>{state.logoOn=e.target.checked;draw()};$('logoSelect').onchange=e=>{state.logo=e.target.value;state.logoOn=e.target.value!=='none';$('logoOn').checked=state.logoOn;if(state.logo!=='none'&&LOGO_CATALOG[state.logo]){logo.onload=()=>draw();logo.src=LOGO_CATALOG[state.logo];$('logoThumb').src=LOGO_CATALOG[state.logo];}draw()};$('wmOn').oninput=e=>{state.wmOn=e.target.checked;draw()};$('wmText').oninput=e=>{state.wmText=e.target.value;draw()};$('wmAngle').oninput=e=>{state.wmAngle=-Math.abs(Number(e.target.value));draw()};document.querySelectorAll('input[name=wmDirection]').forEach(el=>el.addEventListener('change',e=>{state.wmDirection=e.target.value;draw()}));$('textOn').oninput=e=>{state.textOn=e.target.checked;draw()};$('captionText').oninput=e=>{state.text=e.target.value;draw()};$('font').onchange=e=>{state.font=e.target.value;draw()};$('textColor').oninput=e=>{state.textColor=e.target.value;draw()};$('textAlign').onchange=e=>{state.textAlign=e.target.value;state.textY=null;state.textPosition=state.textPosition==='custom'?'bottom':state.textPosition;draw()};$('textPosition').onchange=e=>{state.textPosition=e.target.value;state.textY=null;draw()};
+$('logoOn').oninput=e=>{state.logoOn=e.target.checked;draw()};$('logoSelect').onchange=e=>{state.logo=e.target.value;state.logoOn=e.target.value!=='none';$('logoOn').checked=state.logoOn;if(state.logo!=='none'&&LOGO_CATALOG[state.logo]){loadLogo(state.logo);}draw()};$('wmOn').oninput=e=>{state.wmOn=e.target.checked;draw()};$('wmText').oninput=e=>{state.wmText=e.target.value;draw()};$('wmAngle').oninput=e=>{state.wmAngle=-Math.abs(Number(e.target.value));draw()};document.querySelectorAll('input[name=wmDirection]').forEach(el=>el.addEventListener('change',e=>{state.wmDirection=e.target.value;draw()}));$('textOn').oninput=e=>{state.textOn=e.target.checked;draw()};$('captionText').oninput=e=>{state.text=e.target.value;draw()};$('font').onchange=e=>{state.font=e.target.value;draw()};$('textColor').oninput=e=>{state.textColor=e.target.value;draw()};$('textAlign').onchange=e=>{state.textAlign=e.target.value;state.textY=null;state.textPosition=state.textPosition==='custom'?'bottom':state.textPosition;draw()};$('textPosition').onchange=e=>{state.textPosition=e.target.value;state.textY=null;draw()};
 function pointer(e){const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}
 function hitLogo(p){if(!state.logoOn||state.logo==='none')return false;const r=logoRect();return p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h}
 function hitText(p){if(!state.textOn||!state.text.trim())return false;ctx.save();ctx.font=`${state.textSize}px ${state.font}`;const w=ctx.measureText(state.text).width;ctx.restore();const x=textXPosition(),y=textPosition();const left=state.textAlign==='left'?x-12:x-w/2-18;const right=state.textAlign==='right'?x+12:x+w/2+18;return p.x>=left&&p.x<=right&&Math.abs(p.y-y)<=state.textSize*1.25}
