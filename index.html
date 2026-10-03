@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PelargoniumWorld Photo Tool wFB — v1.0.4</title>
+<title>PelargoniumWorld Photo Tool wFB — v1.0.5</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bad+Script&family=Pattaya&display=swap');
 :root{--green:#0b6239;--green2:#12804a;--light:#edf4ef;--card:#fff;--ink:#173122;--muted:#68776d;--line:#d7e2d9;--soft:#f4f8f5}
@@ -35,7 +35,7 @@
 <body>
 <div class="app">
 <header class="top">
-  <div class="brand"><img id="brandLogo" src="logoes/PelargoniumWorld.png" alt="PelargoniumWorld"><div><h1>PelargoniumWorld Photo Tool wFB <span class="version-badge">v1.0.4</span></h1><p>Подготви снимка за сайта и Facebook.</p></div></div>
+  <div class="brand"><img id="brandLogo" src="logoes/PelargoniumWorld.png" alt="PelargoniumWorld"><div><h1>PelargoniumWorld Photo Tool wFB <span class="version-badge">v1.0.5</span></h1><p>Подготви снимка за сайта и Facebook.</p></div></div>
   <nav class="top-links"><a href="https://pelargoniumworld.eu" target="_blank" rel="noopener">🌐 Сайт</a><a href="https://www.facebook.com/groups/pelargoniumworld" target="_blank" rel="noopener">👥 Facebook група</a><a href="https://www.facebook.com/pelargoniumworld.eu" target="_blank" rel="noopener">📘 Facebook страница</a></nav>
   <div class="top-actions"><label class="btn primary" id="openLabel" for="photo">1. Качи снимка</label><input id="photo" type="file" accept="image/*" hidden><button class="btn" id="downloadPng" disabled>Свали PNG</button><button class="btn" id="downloadJpg" disabled>Свали JPG</button></div>
 </header>
@@ -104,6 +104,13 @@ async function loadLogoCatalog(){
       if(file.type!=='file')continue;
       const ext=(file.name.split('.').pop()||'').toLowerCase();
       if(!['png','jpg','jpeg','webp','svg','gif'].includes(ext))continue;
+      // Do not add a second entry for logos already registered in the catalog.
+      const normalized=file.name.toLowerCase().replace(/\.[^.]+$/,'');
+      const alreadyRegistered=Object.keys(LOGO_CATALOG).some(key=>{
+        const pathName=LOGO_CATALOG[key].split('/').pop().toLowerCase().replace(/\.[^.]+$/,'');
+        return pathName===normalized;
+      });
+      if(alreadyRegistered)continue;
       const key='file:'+file.name;
       LOGO_CATALOG[key]=file.download_url||('logoes/'+encodeURIComponent(file.name));
       LOGO_NAMES[key]=file.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ').trim();
