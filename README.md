@@ -1,31 +1,16 @@
-# PelargoniumWorld Photo Tool wFB — v1.0.2
+# PelargoniumWorld Photo Tool wFB
 
-Нова развиваща се версия на **PelargoniumWorld Photo Tool**, базирана на production версията в `PelargoniumWorld-photo-tool`.
+Development version based on the production baseline in `PelargoniumWorld-photo-tool`.
 
-## Важно
-- Production repository: `PelargoniumWorld-photo-tool`
-- Development repository: `PelargoniumWorld-photo-tool-wFB`
-- Всички бъдещи промени по новите функции се правят **само** в това repository.
-- Production repository не се променя от разработката на wFB.
+## Version
+**v1.0.2**
 
-## Текуща нова функция
-Добавен е Facebook post панел с:
-- текстово поле до 500 символа;
-- поддръжка на емотиконки;
-- брояч на символите;
-- локално запазване на въведения текст;
-- копиране на текста;
-- отваряне на Facebook за ръчно публикуване.
+The version is shown directly in the tool header so the active deployed version is immediately visible.
 
-Автоматичното натискане на Facebook бутона за публикуване от статичен GitHub Pages сайт не е реализирано поради ограниченията на браузъра и Facebook.
+## Logo system
+Logos are stored in `logoes/` and can be selected from the Logo control:
+- PelargoniumWorld — default
+- НЕ СИ САМ!
+- Без лого
 
-## v1.0.1
-- Видим номер на версията в заглавието на инструмента: **v1.0.1**.
-- Facebook панелът е преместен директно под визуализацията на снимката.
-- Панелът вече не стои като отделен футър под инструмента и не намалява предварително зададената визуална област.
-
-
-## v1.0.2
-- Добавена директория `logoes/` за каталог на логата.
-- Добавен избор между PelargoniumWorld, НЕ СИ САМ! и Без лого.
-- Добавено зареждане на избраното лого от `logoes/`.
+The production repository is not modified by this project.
