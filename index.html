@@ -101,28 +101,41 @@ async function loadLogoCatalog(){
     const res=await fetch('https://api.github.com/repos/dannrash78/PelargoniumWorld-photo-tool-wFB/contents/logoes?ref=main&ts='+Date.now(),{headers:{Accept:'application/vnd.github+json'}});
     if(!res.ok)throw new Error('HTTP '+res.status);
     const files=await res.json();
-    // Every image file in logoes is a separate selectable logo. No deduplication.
-    // Keep the two original stable keys for their corresponding files so the
-    // existing upload/default logic remains intact; every other file gets its own key.
-    const scanned={catalog:{},names:{},types:{}};
-    for(const file of files){
-      if(file.type!=='file')continue;
+
+    // One option per unique logo content. Prefer canonical filenames when duplicates exist.
+    const logoFiles=files.filter(file=>{
+      if(file.type!=='file')return false;
       const ext=(file.name.split('.').pop()||'').toLowerCase();
-      if(!['png','jpg','jpeg','webp','svg','gif'].includes(ext))continue;
+      return ['png','jpg','jpeg','webp','svg','gif'].includes(ext);
+    }).sort((a,b)=>{
+      const priority=name=>{
+        if(name==='PelargoniumWorld.png')return 0;
+        if(name==='Не си сам!.png')return 1;
+        if(name==='Не си сам! - logo.png')return 2;
+        return 10;
+      };
+      return priority(a.name)-priority(b.name);
+    });
+
+    const seenSha=new Set();
+    for(const file of logoFiles){
+      if(seenSha.has(file.sha))continue;
+      seenSha.add(file.sha);
+
+      const ext=(file.name.split('.').pop()||'').toLowerCase();
       let key='file:'+file.path;
-      if(file.name==='PelargoniumWorld.png')key='pw';
-      else if(file.name==='Не си сам!.png')key='ne-si-sam-png';
-      scanned.catalog[key]='logoes/'+file.name.split('/').map(encodeURIComponent).join('/');
-      scanned.names[key]=key==='pw'?'PelargoniumWorld':key==='ne-si-sam-png'?'НЕ СИ САМ!':file.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ').trim();
-      scanned.types[key]=ext;
+      let name=file.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ').trim();
+
+      if(file.name==='PelargoniumWorld.png'){
+        key='pw'; name='PelargoniumWorld';
+      }else if(file.name==='Не си сам!.png'){
+        key='ne-si-sam-png'; name='НЕ СИ САМ!';
+      }
+
+      LOGO_CATALOG[key]='logoes/'+file.name.split('/').map(encodeURIComponent).join('/');
+      LOGO_NAMES[key]=name;
+      LOGO_TYPES[key]=ext;
     }
-    // Replace, don't append, so the two static entries cannot be duplicated.
-    Object.keys(LOGO_CATALOG).forEach(k=>delete LOGO_CATALOG[k]);
-    Object.keys(LOGO_NAMES).forEach(k=>delete LOGO_NAMES[k]);
-    Object.keys(LOGO_TYPES).forEach(k=>delete LOGO_TYPES[k]);
-    Object.assign(LOGO_CATALOG,scanned.catalog);
-    Object.assign(LOGO_NAMES,scanned.names);
-    Object.assign(LOGO_TYPES,scanned.types);
     renderLogoOptions();
   }catch(err){
     console.warn('Logo catalog API unavailable; using repository fallback.',err);
@@ -146,42 +159,16 @@ const $=id=>document.getElementById(id);
 function loadLogo(key){
   if(!key||key==='none'||!LOGO_CATALOG[key])return;
   const src=LOGO_CATALOG[key];
-  const img=new Image();
-  img.onload=()=>{
-    try{
-      const w=img.naturalWidth||img.width,h=img.naturalHeight||img.height;
-      const work=document.createElement('canvas'); work.width=w; work.height=h;
-      const wx=work.getContext('2d',{willReadFrequently:true}); wx.clearRect(0,0,w,h); wx.drawImage(img,0,0,w,h);
-      const d=wx.getImageData(0,0,w,h),seen=new Uint8Array(w*h),qx=new Int32Array(w*h),qy=new Int32Array(w*h);
-      let head=0,tail=0;
-      const isBg=i=>{
-        const a=d.data[i+3]; if(a===0)return true;
-        const r=d.data[i],g=d.data[i+1],b=d.data[i+2],mx=Math.max(r,g,b),mn=Math.min(r,g,b);
-        // Remove only the neutral gray/checkerboard background.
-        // Pure white is part of the logo (text background and symbol outline)
-        // and must NEVER be made transparent.
-        return mx-mn<=24 && mx>=70 && mx<245;
-      };
-      const push=(x,y)=>{
-        if(x<0||y<0||x>=w||y>=h)return;
-        const p=y*w+x;if(seen[p]||!isBg(p*4))return;
-        seen[p]=1;qx[tail]=x;qy[tail]=y;tail++;
-      };
-      for(let x=0;x<w;x++){push(x,0);push(x,h-1)}
-      for(let y=0;y<h;y++){push(0,y);push(w-1,y)}
-      while(head<tail){
-        const x=qx[head],y=qy[head++],i=(y*w+x)*4;d.data[i+3]=0;
-        push(x-1,y);push(x+1,y);push(x,y-1);push(x,y+1);
-      }
-      wx.putImageData(d,0,0);
-      logo.onload=draw; logo.src=work.toDataURL('image/png'); $('logoThumb').src=logo.src; draw();
-    }catch(err){
-      console.warn('Logo transparency processing failed:',err);
-      logo.onload=draw; logo.src=src; $('logoThumb').src=src; draw();
-    }
+
+  // Use the original logo unchanged. The white text background and white
+  // symbol outline are intentional parts of the artwork.
+  logo.onload=()=>{
+    $('logoThumb').src=src;
+    draw();
   };
-  img.onerror=()=>console.warn('Logo could not be loaded:',src);
-  img.src=src;
+  logo.onerror=()=>console.warn('Logo could not be loaded:',src);
+  $('logoThumb').src=src;
+  logo.src=src;
 }
 const presets=[['site-square','Сайт','1200 × 1200',1200,1200],['site-portrait','Сайт портрет','1200 × 1500',1200,1500],['fb-square','Facebook','1080 × 1080',1080,1080],['fb-portrait','Facebook портрет','1080 × 1350',1080,1350],['fb-landscape','Facebook хоризонтален','1200 × 630',1200,630]];
 const state={format:null,photoLoaded:false,photoX:0,photoY:0,logoOn:true,logo:'pw',logoSize:42,logoOpacity:1,logoX:-64,logoY:-73,wmOn:true,wmText:'Пеларгонен Свят (Pelargonium World) ©',wmOpacity:.13,wmDensity:1,wmAngle:-18,wmDirection:'tl-br',textOn:true,text:'Пеларгониум Свят (Pelargonium World) ©',font:'Pattaya',textSize:64,textColor:'#ffffff',textOpacity:1,textPosition:'bottom',textAlign:'center',textInset:5,textX:.5,textY:null,drag:null};
