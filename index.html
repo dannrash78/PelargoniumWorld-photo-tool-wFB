@@ -119,7 +119,7 @@ async function loadLogoCatalog(){
       const ext=(file.name.split('.').pop()||'').toLowerCase();
       const key='file:'+file.path;
       LOGO_CATALOG[key]=file.download_url||('logoes/'+encodeURIComponent(file.name));
-      LOGO_NAMES[key]=file.name.replace(/\\.[^.]+$/,'');
+      LOGO_NAMES[key]=file.name.replace(/\.[^.]+$/,'');
       LOGO_TYPES[key]=ext;
     }
 
