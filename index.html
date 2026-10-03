@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PelargoniumWorld Photo Tool wFB — v1.0.6</title>
+<title>PelargoniumWorld Photo Tool wFB — v1.0.7</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bad+Script&family=Pattaya&display=swap');
 :root{--green:#0b6239;--green2:#12804a;--light:#edf4ef;--card:#fff;--ink:#173122;--muted:#68776d;--line:#d7e2d9;--soft:#f4f8f5}
@@ -92,49 +92,130 @@
 </aside>
 </div></div>
 <script>
-const LOGO_CATALOG={pw:'logoes/PelargoniumWorld.png','ne-si-sam-png':'logoes/Не си сам!.png'};
-const LOGO_NAMES={pw:'PelargoniumWorld','ne-si-sam-png':'НЕ СИ САМ!'};
-const LOGO_TYPES={pw:'png','ne-si-sam-png':'png'};
+const LOGO_CATALOG={};
+const LOGO_NAMES={};
+const LOGO_TYPES={};
+const STATIC_FALLBACK={
+  pw:{path:'logoes/PelargoniumWorld.png',name:'PelargoniumWorld',type:'png'},
+  'ne-si-sam-png':{path:'logoes/Не си сам!.png',name:'Не си сам!',type:'png'}
+};
 
 async function loadLogoCatalog(){
   try{
-    const res=await fetch('https://api.github.com/repos/dannrash78/PelargoniumWorld-photo-tool-wFB/contents/logoes?ref=main',{headers:{Accept:'application/vnd.github+json'}});
+    const res=await fetch('https://api.github.com/repos/dannrash78/PelargoniumWorld-photo-tool-wFB/contents/logoes?ref=main&ts='+Date.now(),{
+      headers:{Accept:'application/vnd.github+json','Cache-Control':'no-cache'}
+    });
     if(!res.ok)throw new Error('HTTP '+res.status);
     const files=await res.json();
-    for(const file of files){
-      if(file.type!=='file')continue;
+    const logoFiles=files.filter(file=>{
+      if(file.type!=='file')return false;
       const ext=(file.name.split('.').pop()||'').toLowerCase();
-      if(!['png','jpg','jpeg','webp','svg','gif'].includes(ext))continue;
-      // Do not add a second entry for logos already registered in the catalog.
-      const normalized=file.name.toLowerCase().replace(/\.[^.]+$/,'');
-      const alreadyRegistered=Object.keys(LOGO_CATALOG).some(key=>{
-        const pathName=LOGO_CATALOG[key].split('/').pop().toLowerCase().replace(/\.[^.]+$/,'');
-        return pathName===normalized;
-      });
-      if(alreadyRegistered)continue;
-      const key='file:'+file.name;
+      return ['png','jpg','jpeg','webp','svg','gif'].includes(ext);
+    });
+
+    // The directory is authoritative: EVERY image file gets its own option.
+    // Files are not deduplicated by filename, normalized name, or identical content.
+    for(const file of logoFiles){
+      const ext=(file.name.split('.').pop()||'').toLowerCase();
+      const key='file:'+file.path;
       LOGO_CATALOG[key]=file.download_url||('logoes/'+encodeURIComponent(file.name));
-      LOGO_NAMES[key]=file.name.replace(/\.[^.]+$/,'').replace(/[-_]+/g,' ').trim();
+      LOGO_NAMES[key]=file.name.replace(/\\.[^.]+$/,'');
       LOGO_TYPES[key]=ext;
     }
+
     renderLogoOptions();
   }catch(err){
-    console.warn('Logo catalog API unavailable; using repository fallback.',err);
+    console.warn('Logo directory scan unavailable; using static fallback.',err);
+    for(const [key,v] of Object.entries(STATIC_FALLBACK)){
+      LOGO_CATALOG[key]=v.path;
+      LOGO_NAMES[key]=v.name;
+      LOGO_TYPES[key]=v.type;
+    }
     renderLogoOptions();
   }
 }
+
 function renderLogoOptions(){
   const select=$('logoSelect');
-  const current=select.value||'pw';
+  const current=select.value||'';
   select.innerHTML='';
   Object.keys(LOGO_CATALOG).forEach(key=>{
     const opt=document.createElement('option');
     opt.value=key;
-    opt.textContent=LOGO_NAMES[key]||key;
+    opt.textContent=LOGO_NAMES[key]||key.replace(/^file:/,'');
     select.appendChild(opt);
   });
-  const none=document.createElement('option'); none.value='none'; none.textContent='Без лого'; select.appendChild(none);
-  select.value=LOGO_CATALOG[current]?current:'pw';
+  const none=document.createElement('option');
+  none.value='none';
+  none.textContent='Без лого';
+  select.appendChild(none);
+
+  if(current && LOGO_CATALOG[current]) select.value=current;
+  else {
+    const first=Object.keys(LOGO_CATALOG)[0];
+    select.value=first||'none';
+  }
+}
+
+async function loadLogo(key){
+  const src=LOGO_CATALOG[key];
+  if(!src)return;
+  const img=new Image();
+  img.crossOrigin='anonymous';
+  img.onload=()=>{
+    // The source logo contains a checkerboard/non-transparent background.
+    // Remove ONLY the background connected to the image edges, so enclosed
+    // white areas belonging to the logo itself are preserved.
+    try{
+      const c=document.createElement('canvas');
+      c.width=img.naturalWidth;
+      c.height=img.naturalHeight;
+      const x=c.getContext('2d',{willReadFrequently:true});
+      x.drawImage(img,0,0);
+      const d=x.getImageData(0,0,c.width,c.height);
+      const w=c.width,h=c.height,seen=new Uint8Array(w*h),q=new Int32Array(w*h);
+      let head=0,tail=0;
+      const nearBg=(i)=>{
+        const r=d.data[i],g=d.data[i+1],b=d.data[i+2];
+        const mx=Math.max(r,g,b),mn=Math.min(r,g,b);
+        // Checkerboard is neutral/near-neutral. Keep strongly coloured logo pixels.
+        return (mx-mn<=22 && mx<250 && mx>70) || (mx>=250 && mx-mn<=10);
+      };
+      const push=(x0,y0)=>{
+        const p=y0*w+x0;
+        if(seen[p])return;
+        seen[p]=1;
+        if(nearBg(p*4))q[tail++]=p;
+      };
+      for(let xx=0;xx<w;xx++){push(xx,0);push(xx,h-1);}
+      for(let yy=1;yy<h-1;yy++){push(0,yy);push(w-1,yy);}
+      while(head<tail){
+        const p=q[head++],px=p%w,py=(p/w)|0;
+        d.data[p*4+3]=0;
+        if(px>0)push(px-1,py);
+        if(px<w-1)push(px+1,py);
+        if(py>0)push(px,py-1);
+        if(py<h-1)push(px,py+1);
+      }
+      x.putImageData(d,0,0);
+      const cleaned=c.toDataURL('image/png');
+      logo.onload=()=>draw();
+      logo.src=cleaned;
+      $('logoThumb').src=cleaned;
+    }catch(err){
+      console.warn('Transparent logo processing failed; using original file.',err);
+      logo.onload=()=>draw();
+      logo.src=src;
+      $('logoThumb').src=src;
+    }
+  };
+  img.onerror=()=>{
+    console.warn('Logo failed to load:',src);
+    logo.onload=()=>draw();
+    logo.src=src;
+    $('logoThumb').src=src;
+  };
+  img.src=src+'#logo-'+Date.now();
 }
 
 const $=id=>document.getElementById(id);
@@ -182,8 +263,8 @@ async function loadLogo(key){
   img.src=src;
 }
 const presets=[['site-square','Сайт','1200 × 1200',1200,1200],['site-portrait','Сайт портрет','1200 × 1500',1200,1500],['fb-square','Facebook','1080 × 1080',1080,1080],['fb-portrait','Facebook портрет','1080 × 1350',1080,1350],['fb-landscape','Facebook хоризонтален','1200 × 630',1200,630]];
-const state={format:null,photoLoaded:false,photoX:0,photoY:0,logoOn:true,logo:'pw',logoSize:42,logoOpacity:1,logoX:-64,logoY:-73,wmOn:true,wmText:'Пеларгонен Свят (Pelargonium World) ©',wmOpacity:.13,wmDensity:1,wmAngle:-18,wmDirection:'tl-br',textOn:true,text:'Пеларгониум Свят (Pelargonium World) ©',font:'Pattaya',textSize:64,textColor:'#ffffff',textOpacity:1,textPosition:'bottom',textAlign:'center',textInset:5,textX:.5,textY:null,drag:null};
-const canvas=$('canvas'),ctx=canvas.getContext('2d');const logo=new Image();logo.src=LOGO_CATALOG.pw;const photo=new Image();
+const state={format:null,photoLoaded:false,photoX:0,photoY:0,logoOn:true,logo:'',logoSize:42,logoOpacity:1,logoX:-64,logoY:-73,wmOn:true,wmText:'Пеларгонен Свят (Pelargonium World) ©',wmOpacity:.13,wmDensity:1,wmAngle:-18,wmDirection:'tl-br',textOn:true,text:'Пеларгониум Свят (Pelargonium World) ©',font:'Pattaya',textSize:64,textColor:'#ffffff',textOpacity:1,textPosition:'bottom',textAlign:'center',textInset:5,textX:.5,textY:null,drag:null};
+const canvas=$('canvas'),ctx=canvas.getContext('2d');const logo=new Image();const photo=new Image();
 loadLogoCatalog();
 function renderPresets(){const box=$('presets');presets.forEach(p=>{const b=document.createElement('button');b.type='button';b.className='preset';b.dataset.key=p[0];b.innerHTML='<b>'+p[1]+'</b><span>'+p[2]+'</span>';b.onclick=()=>setFormat(p[3],p[4],p[0]);box.appendChild(b)})}
 renderPresets();
@@ -201,17 +282,17 @@ function draw(){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#ff
 function updateUI(){$('photoXV').textContent=Math.round(state.photoX)+'%';$('photoYV').textContent=Math.round(state.photoY)+'%';$('textInsetV').textContent=Math.round(state.textInset)+'%';$('logoSizeV').textContent=state.logoSize+'%';$('logoOpacityV').textContent=Math.round(state.logoOpacity*100)+'%';$('logoXV').textContent=Math.round(state.logoX)+'%';$('logoYV').textContent=Math.round(state.logoY)+'%';$('wmOpacityV').textContent=Math.round(state.wmOpacity*100)+'%';$('wmDensityV').textContent=Math.round(state.wmDensity*100)+'%';$('wmAngleV').textContent=(state.wmDirection==='tl-br'?-Math.abs(state.wmAngle):Math.abs(state.wmAngle))+'°';$('textSizeV').textContent=state.textSize+'px';$('textOpacityV').textContent=Math.round(state.textOpacity*100)+'%'}
 function requireFormat(){if(!state.format){alert('Първо избери формат на готовата снимка.');return false}return true}
 function applyUploadDefaults(){
-  state.logoOn=true; state.logo='pw'; state.logoSize=42; state.logoOpacity=1; state.logoX=-64; state.logoY=-73;
+  state.logoOn=true; state.logo=Object.keys(LOGO_CATALOG)[0]||'none'; state.logoSize=42; state.logoOpacity=1; state.logoX=-64; state.logoY=-73;
   state.wmOn=true; state.wmText='Пеларгонен Свят (Pelargonium World) ©'; state.wmOpacity=.13; state.wmDensity=1; state.wmAngle=-18; state.wmDirection='tl-br';
   state.textOn=true; state.text='Пеларгониум Свят (Pelargonium World) ©'; state.font='Pattaya'; state.textSize=64; state.textColor='#ffffff'; state.textOpacity=1; state.textPosition='bottom'; state.textAlign='center'; state.textInset=5; state.textX=.5; state.textY=null;
-  $('logoOn').checked=true; $('logoSelect').value='pw'; $('logoThumb').src=LOGO_CATALOG.pw; logo.src=LOGO_CATALOG.pw; $('logoSize').value=42; $('logoOpacity').value=100; $('logoX').value=-64; $('logoY').value=-73;
+  $('logoOn').checked=state.logo!=='none'; $('logoSelect').value=state.logo; if(state.logo!=='none')loadLogo(state.logo); $('logoSize').value=42; $('logoOpacity').value=100; $('logoX').value=-64; $('logoY').value=-73;
   $('wmOn').checked=true; $('wmText').value=state.wmText; $('wmOpacity').value=13; $('wmDensity').value=100; $('wmAngle').value=18; document.querySelector('input[name=wmDirection][value=tl-br]').checked=true;
   $('textOn').checked=true; $('captionText').value=state.text; $('font').value='Pattaya'; $('textSize').value=64; $('textColor').value='#ffffff'; $('textOpacity').value=100; $('textAlign').value='center'; $('textPosition').value='bottom'; $('textInset').value=5;
   updateUI();
 }
 $('photo').onchange=e=>{const f=e.target.files&&e.target.files[0];if(!f)return;const url=URL.createObjectURL(f);photo.onload=()=>{state.photoLoaded=true;applyUploadDefaults();state.photoX=0;state.photoY=0;$('photoX').value=0;$('photoY').value=0;setFormat(1080,1350,'fb-portrait');autoPositionPhoto();$('info').textContent=f.name+' — '+photo.naturalWidth+' × '+photo.naturalHeight;$('photoStatus').textContent='Снимката е готова за позициониране';$('downloadPng').disabled=false;$('downloadJpg').disabled=false;URL.revokeObjectURL(url);draw()};photo.onerror=()=>{alert('Снимката не може да бъде заредена.');URL.revokeObjectURL(url)};photo.src=url};
 [['logoSize','logoSize',Number],['logoOpacity','logoOpacity',v=>Number(v)/100],['logoX','logoX',Number],['logoY','logoY',Number],['wmOpacity','wmOpacity',v=>Number(v)/100],['wmDensity','wmDensity',v=>Number(v)/100],['textSize','textSize',Number],['textOpacity','textOpacity',v=>Number(v)/100]].forEach(([id,key,fn])=>$(id).addEventListener('input',e=>{state[key]=fn(e.target.value);draw()}));
-$('logoOn').oninput=e=>{state.logoOn=e.target.checked;draw()};$('logoSelect').onchange=e=>{state.logo=e.target.value;state.logoOn=e.target.value!=='none';$('logoOn').checked=state.logoOn;if(state.logo!=='none'&&LOGO_CATALOG[state.logo]){loadLogo(state.logo);}draw()};$('wmOn').oninput=e=>{state.wmOn=e.target.checked;draw()};$('wmText').oninput=e=>{state.wmText=e.target.value;draw()};$('wmAngle').oninput=e=>{state.wmAngle=-Math.abs(Number(e.target.value));draw()};document.querySelectorAll('input[name=wmDirection]').forEach(el=>el.addEventListener('change',e=>{state.wmDirection=e.target.value;draw()}));$('textOn').oninput=e=>{state.textOn=e.target.checked;draw()};$('captionText').oninput=e=>{state.text=e.target.value;draw()};$('font').onchange=e=>{state.font=e.target.value;draw()};$('textColor').oninput=e=>{state.textColor=e.target.value;draw()};$('textAlign').onchange=e=>{state.textAlign=e.target.value;state.textY=null;state.textPosition=state.textPosition==='custom'?'bottom':state.textPosition;draw()};$('textPosition').onchange=e=>{state.textPosition=e.target.value;state.textY=null;draw()};
+$('logoOn').oninput=e=>{state.logoOn=e.target.checked;draw()};$('logoSelect').onchange=e=>{state.logo=e.target.value;state.logoOn=e.target.value!=='none';$('logoOn').checked=state.logoOn;if(state.logo!=='none')loadLogo(state.logo);draw()};};$('wmOn').oninput=e=>{state.wmOn=e.target.checked;draw()};$('wmText').oninput=e=>{state.wmText=e.target.value;draw()};$('wmAngle').oninput=e=>{state.wmAngle=-Math.abs(Number(e.target.value));draw()};document.querySelectorAll('input[name=wmDirection]').forEach(el=>el.addEventListener('change',e=>{state.wmDirection=e.target.value;draw()}));$('textOn').oninput=e=>{state.textOn=e.target.checked;draw()};$('captionText').oninput=e=>{state.text=e.target.value;draw()};$('font').onchange=e=>{state.font=e.target.value;draw()};$('textColor').oninput=e=>{state.textColor=e.target.value;draw()};$('textAlign').onchange=e=>{state.textAlign=e.target.value;state.textY=null;state.textPosition=state.textPosition==='custom'?'bottom':state.textPosition;draw()};$('textPosition').onchange=e=>{state.textPosition=e.target.value;state.textY=null;draw()};
 function pointer(e){const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)*canvas.width/r.width,y:(e.clientY-r.top)*canvas.height/r.height}}
 function hitLogo(p){if(!state.logoOn||state.logo==='none')return false;const r=logoRect();return p.x>=r.x&&p.x<=r.x+r.w&&p.y>=r.y&&p.y<=r.y+r.h}
 function hitText(p){if(!state.textOn||!state.text.trim())return false;ctx.save();ctx.font=`${state.textSize}px ${state.font}`;const w=ctx.measureText(state.text).width;ctx.restore();const x=textXPosition(),y=textPosition();const left=state.textAlign==='left'?x-12:x-w/2-18;const right=state.textAlign==='right'?x+12:x+w/2+18;return p.x>=left&&p.x<=right&&Math.abs(p.y-y)<=state.textSize*1.25}
@@ -219,7 +300,7 @@ canvas.addEventListener('pointerdown',e=>{if(!state.photoLoaded||!state.format)r
 canvas.addEventListener('pointermove',e=>{if(!state.drag)return;const p=pointer(e);if(state.drag.type==='logo'){const cx=p.x-state.drag.dx,cy=p.y-state.drag.dy;state.logoX=Math.max(-100,Math.min(100,(cx-canvas.width/2)*200/canvas.width));state.logoY=Math.max(-100,Math.min(100,(cy-canvas.height/2)*200/canvas.height));$('logoX').value=Math.round(state.logoX);$('logoY').value=Math.round(state.logoY)}else if(state.drag.type==='text'){state.textX=Math.max(0.05,Math.min(.95,(p.x-state.drag.dx)/canvas.width));state.textY=Math.max(20,Math.min(canvas.height-20,p.y-state.drag.dy));state.textPosition='custom'}else if(state.drag.type==='photo'){const mx=Math.max(1,state.drag.maxX),my=Math.max(1,state.drag.maxY);state.photoX=Math.max(-100,Math.min(100,state.drag.startPhotoX+(p.x-state.drag.startX)*100/mx));state.photoY=Math.max(-100,Math.min(100,state.drag.startPhotoY+(p.y-state.drag.startY)*100/my));$('photoX').value=Math.round(state.photoX);$('photoY').value=Math.round(state.photoY)}draw()});
 ['pointerup','pointercancel','pointerleave'].forEach(ev=>canvas.addEventListener(ev,e=>{state.drag=null}));
 function download(kind){if(!state.photoLoaded||!state.format)return;const mime=kind==='png'?'image/png':'image/jpeg';const ext=kind==='png'?'png':'jpg';const base=(state.text||'pelargoniumworld-photo').trim().replace(/\s+/g,'_').replace(/[\\/:*?"<>|]+/g,'').replace(/_+/g,'_').replace(/^_+|_+$/g,'')||'pelargoniumworld-photo';const name=prompt('Име на файла:',base);if(name===null)return;const safe=name.trim().replace(/\s+/g,'_').replace(/[\\/:*?"<>|]+/g,'').replace(/_+/g,'_').replace(/^_+|_+$/g,'')||base;const a=document.createElement('a');a.download=safe.toLowerCase().endsWith('.'+ext)?safe:safe+'.'+ext;a.href=canvas.toDataURL(mime,.94);a.click()};
-$('downloadPng').onclick=()=>download('png');$('downloadJpg').onclick=()=>download('jpg');logo.onload=draw;if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);draw();
+$('downloadPng').onclick=()=>download('png');$('downloadJpg').onclick=()=>download('jpg');if(document.fonts&&document.fonts.ready)document.fonts.ready.then(draw);draw();
 </script>
 
 <script>
