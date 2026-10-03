@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PelargoniumWorld Photo Tool wFB — v1.0.5</title>
+<title>PelargoniumWorld Photo Tool wFB — v1.0.6</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bad+Script&family=Pattaya&display=swap');
 :root{--green:#0b6239;--green2:#12804a;--light:#edf4ef;--card:#fff;--ink:#173122;--muted:#68776d;--line:#d7e2d9;--soft:#f4f8f5}
@@ -35,7 +35,7 @@
 <body>
 <div class="app">
 <header class="top">
-  <div class="brand"><img id="brandLogo" src="logoes/PelargoniumWorld.png" alt="PelargoniumWorld"><div><h1>PelargoniumWorld Photo Tool wFB <span class="version-badge">v1.0.5</span></h1><p>Подготви снимка за сайта и Facebook.</p></div></div>
+  <div class="brand"><img id="brandLogo" src="logoes/PelargoniumWorld.png" alt="PelargoniumWorld"><div><h1>PelargoniumWorld Photo Tool wFB <span class="version-badge">v1.0.6</span></h1><p>Подготви снимка за сайта и Facebook.</p></div></div>
   <nav class="top-links"><a href="https://pelargoniumworld.eu" target="_blank" rel="noopener">🌐 Сайт</a><a href="https://www.facebook.com/groups/pelargoniumworld" target="_blank" rel="noopener">👥 Facebook група</a><a href="https://www.facebook.com/pelargoniumworld.eu" target="_blank" rel="noopener">📘 Facebook страница</a></nav>
   <div class="top-actions"><label class="btn primary" id="openLabel" for="photo">1. Качи снимка</label><input id="photo" type="file" accept="image/*" hidden><button class="btn" id="downloadPng" disabled>Свали PNG</button><button class="btn" id="downloadJpg" disabled>Свали JPG</button></div>
 </header>
@@ -92,9 +92,10 @@
 </aside>
 </div></div>
 <script>
-const LOGO_CATALOG={pw:'logoes/PelargoniumWorld.png','ne-si-sam':'logoes/ne-si-sam.svg'};
-const LOGO_NAMES={pw:'PelargoniumWorld','ne-si-sam':'НЕ СИ САМ!'};
-const LOGO_TYPES={};
+const LOGO_CATALOG={pw:'logoes/PelargoniumWorld.png','ne-si-sam-png':'logoes/Не си сам!.png'};
+const LOGO_NAMES={pw:'PelargoniumWorld','ne-si-sam-png':'НЕ СИ САМ!'};
+const LOGO_TYPES={pw:'png','ne-si-sam-png':'png'};
+
 async function loadLogoCatalog(){
   try{
     const res=await fetch('https://api.github.com/repos/dannrash78/PelargoniumWorld-photo-tool-wFB/contents/logoes?ref=main',{headers:{Accept:'application/vnd.github+json'}});
@@ -118,7 +119,8 @@ async function loadLogoCatalog(){
     }
     renderLogoOptions();
   }catch(err){
-    console.warn('Logo catalog could not be loaded:',err);
+    console.warn('Logo catalog API unavailable; using repository fallback.',err);
+    renderLogoOptions();
   }
 }
 function renderLogoOptions(){
