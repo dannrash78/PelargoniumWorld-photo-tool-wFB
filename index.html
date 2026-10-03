@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>PelargoniumWorld Photo Tool wFB — v1.0.3</title>
+<title>PelargoniumWorld Photo Tool wFB — v1.0.4</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bad+Script&family=Pattaya&display=swap');
 :root{--green:#0b6239;--green2:#12804a;--light:#edf4ef;--card:#fff;--ink:#173122;--muted:#68776d;--line:#d7e2d9;--soft:#f4f8f5}
@@ -35,7 +35,7 @@
 <body>
 <div class="app">
 <header class="top">
-  <div class="brand"><img id="brandLogo" src="logoes/PelargoniumWorld.png" alt="PelargoniumWorld"><div><h1>PelargoniumWorld Photo Tool wFB <span class="version-badge">v1.0.3</span></h1><p>Подготви снимка за сайта и Facebook.</p></div></div>
+  <div class="brand"><img id="brandLogo" src="logoes/PelargoniumWorld.png" alt="PelargoniumWorld"><div><h1>PelargoniumWorld Photo Tool wFB <span class="version-badge">v1.0.4</span></h1><p>Подготви снимка за сайта и Facebook.</p></div></div>
   <nav class="top-links"><a href="https://pelargoniumworld.eu" target="_blank" rel="noopener">🌐 Сайт</a><a href="https://www.facebook.com/groups/pelargoniumworld" target="_blank" rel="noopener">👥 Facebook група</a><a href="https://www.facebook.com/pelargoniumworld.eu" target="_blank" rel="noopener">📘 Facebook страница</a></nav>
   <div class="top-actions"><label class="btn primary" id="openLabel" for="photo">1. Качи снимка</label><input id="photo" type="file" accept="image/*" hidden><button class="btn" id="downloadPng" disabled>Свали PNG</button><button class="btn" id="downloadJpg" disabled>Свали JPG</button></div>
 </header>
@@ -69,7 +69,7 @@
   <button class="btn" id="photoReset" style="width:100%;margin-top:4px">Центрирай снимката</button>
 </section>
 <section class="card section" id="logoSection"><div class="title-row"><h2>3. Лого</h2><label class="toggle"><input id="logoOn" type="checkbox" checked> Покажи</label></div>
-  <div class="field"><label>Избери лого</label><div class="logo-choice"><img class="logo-thumb" id="logoThumb" src="logoes/PelargoniumWorld.png" alt="Избрано лого"><select id="logoSelect" aria-label="Избери лого"><option value="pw">PelargoniumWorld</option><option value="ne-si-sam">НЕ СИ САМ!</option><option value="none">Без лого</option></select></div></div>
+  <div class="field"><label>Избери лого</label><div class="logo-choice"><img class="logo-thumb" id="logoThumb" src="logoes/PelargoniumWorld.png" alt="Избрано лого"><select id="logoSelect" aria-label="Избери лого"><option value="pw">PelargoniumWorld</option></select></div></div>
   <div class="field"><label>Размер <span class="value" id="logoSizeV">42%</span></label><input id="logoSize" type="range" min="5" max="55" value="42"></div>
   <div class="field"><label>Прозрачност <span class="value" id="logoOpacityV">100%</span></label><input id="logoOpacity" type="range" min="0" max="100" value="100"></div>
   <div class="field"><label>Хоризонтално положение <span class="value" id="logoXV">-64%</span></label><input id="logoX" type="range" min="-100" max="100" value="-64"></div>
