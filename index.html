@@ -157,7 +157,10 @@ function loadLogo(key){
       const isBg=i=>{
         const a=d.data[i+3]; if(a===0)return true;
         const r=d.data[i],g=d.data[i+1],b=d.data[i+2],mx=Math.max(r,g,b),mn=Math.min(r,g,b);
-        return mx-mn<=24 && mx>=70;
+        // Remove only the neutral gray/checkerboard background.
+        // Pure white is part of the logo (text background and symbol outline)
+        // and must NEVER be made transparent.
+        return mx-mn<=24 && mx>=70 && mx<245;
       };
       const push=(x,y)=>{
         if(x<0||y<0||x>=w||y>=h)return;
